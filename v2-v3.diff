@@ -1,0 +1,116 @@
+diff --git a/v2-prevent-dot-dir/go.mod b/v3-no-escape/go.mod
+index ed7b3f5..a5d6f05 100644
+--- a/v2-prevent-dot-dir/go.mod
++++ b/v3-no-escape/go.mod
+@@ -1,3 +1,3 @@
+-module github.com/hammondus/webserver-evolution/ver2
++module github.com/hammondus/webserver-evolution/ver3
+ 
+ go 1.26.3
+diff --git a/v2-prevent-dot-dir/index.html b/v3-no-escape/index.html
+index eae5aa2..a8a2033 100644
+--- a/v2-prevent-dot-dir/index.html
++++ b/v3-no-escape/index.html
+@@ -4,11 +4,11 @@
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-    <title>Web Server v2</title>
++    <title>Web Server v3</title>
+ </head>
+ 
+ <body>
+-    <h1>Web Server v2</h1>
++    <h1>Web Server v3</h1>
+ </body>
+ 
+ </html>
+\ No newline at end of file
+diff --git a/v2-prevent-dot-dir/main.go b/v3-no-escape/main.go
+index 55e0be4..1d0440b 100644
+--- a/v2-prevent-dot-dir/main.go
++++ b/v3-no-escape/main.go
+@@ -1,6 +1,7 @@
+ package main
+ 
+ import (
++	"fmt"
+ 	"io/fs"
+ 	"log"
+ 	"net/http"
+@@ -10,13 +11,14 @@ import (
+ )
+ 
+ func main() {
+-	fsys := customFileSystem{
+-		FS:            os.DirFS("."),
+-		dotFileAccess: false,
++
++	fsys, err := NewCustomFS(".", true, false)
++	if err != nil {
++		log.Fatal(err)
+ 	}
+ 
+ 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+-		serveCustomFS(&fsys, w, r)
++		serveCustomFS(fsys, w, r)
+ 	})
+ 	log.Println("Server starting on :8080")
+ 	log.Fatal(http.ListenAndServe(":8080", nil))
+@@ -24,11 +26,29 @@ func main() {
+ 
+ // Custom File System struct, methods and associated functions
+ type customFileSystem struct {
+-	fs.FS
++	innerFS       fs.FS
+ 	dotFileAccess bool
+ }
+ 
+-func serveCustomFS(fsys *customFileSystem, w http.ResponseWriter, r *http.Request) {
++func NewCustomFS(rootPath string, rootEscape bool, dotFileAccess bool) (*customFileSystem, error) {
++	var innerFS fs.FS
++	if rootEscape {
++		innerFS = os.DirFS(rootPath)
++	} else {
++		root, err := os.OpenRoot(rootPath)
++		if err != nil {
++			return nil, fmt.Errorf("failed to open restricted root: %w", err)
++		}
++		innerFS = root.FS()
++	}
++
++	return &customFileSystem{
++			innerFS:       innerFS,
++			dotFileAccess: dotFileAccess},
++		nil
++}
++
++func serveCustomFS(fsys fs.FS, w http.ResponseWriter, r *http.Request) {
+ 	urlPath := path.Clean(r.URL.Path)
+ 	urlPath = strings.TrimPrefix(urlPath, "/")
+ 
+@@ -44,13 +64,11 @@ func serveCustomFS(fsys *customFileSystem, w http.ResponseWriter, r *http.Reques
+ 	}
+ 
+ 	if stat.IsDir() {
+-		indexPath := path.Join(urlPath, "index.html")
+-		if _, err := fs.Stat(fsys, indexPath); err != nil {
++		urlPath = path.Join(urlPath, "index.html")
++		if _, err := fs.Stat(fsys, urlPath); err != nil {
+ 			http.Error(w, "Not Found", http.StatusNotFound)
+ 			return
+ 		}
+-		http.ServeFileFS(w, r, fsys, indexPath)
+-		return
+ 	}
+ 	http.ServeFileFS(w, r, fsys, urlPath)
+ }
+@@ -59,7 +77,7 @@ func (fsys *customFileSystem) Open(name string) (fs.File, error) {
+ 	if !fsys.dotFileAccess && containsDotFile(name) {
+ 		return nil, fs.ErrPermission
+ 	}
+-	return fsys.FS.Open(name)
++	return fsys.innerFS.Open(name)
+ }
+ 
+ func containsDotFile(name string) bool {

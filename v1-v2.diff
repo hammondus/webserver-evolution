@@ -1,0 +1,108 @@
+diff --git a/v1-super-simple/go.mod b/v2-prevent-dot-dir/go.mod
+index 82d13fe..ed7b3f5 100644
+--- a/v1-super-simple/go.mod
++++ b/v2-prevent-dot-dir/go.mod
+@@ -1,3 +1,3 @@
+-module github.com/hammondus/webserver-evolution/ver1
++module github.com/hammondus/webserver-evolution/ver2
+ 
+ go 1.26.3
+diff --git a/v1-super-simple/index.html b/v2-prevent-dot-dir/index.html
+index 8cd058f..eae5aa2 100644
+--- a/v1-super-simple/index.html
++++ b/v2-prevent-dot-dir/index.html
+@@ -4,11 +4,11 @@
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-    <title>Web Server v1</title>
++    <title>Web Server v2</title>
+ </head>
+ 
+ <body>
+-    <h1>Web Server v1</h1>
++    <h1>Web Server v2</h1>
+ </body>
+ 
+ </html>
+\ No newline at end of file
+diff --git a/v1-super-simple/main.go b/v2-prevent-dot-dir/main.go
+index 064914b..55e0be4 100644
+--- a/v1-super-simple/main.go
++++ b/v2-prevent-dot-dir/main.go
+@@ -1,13 +1,73 @@
+ package main
+ 
+ import (
++	"io/fs"
+ 	"log"
+ 	"net/http"
+ 	"os"
++	"path"
++	"strings"
+ )
+ 
+ func main() {
+-	fileServer := http.FileServerFS(os.DirFS(".")) // introduced in go1.22
+-	http.Handle("/", fileServer)
++	fsys := customFileSystem{
++		FS:            os.DirFS("."),
++		dotFileAccess: false,
++	}
++
++	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
++		serveCustomFS(&fsys, w, r)
++	})
++	log.Println("Server starting on :8080")
+ 	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
++
++// Custom File System struct, methods and associated functions
++type customFileSystem struct {
++	fs.FS
++	dotFileAccess bool
++}
++
++func serveCustomFS(fsys *customFileSystem, w http.ResponseWriter, r *http.Request) {
++	urlPath := path.Clean(r.URL.Path)
++	urlPath = strings.TrimPrefix(urlPath, "/")
++
++	// Prevent an empty path
++	if urlPath == "" {
++		urlPath = "."
++	}
++
++	stat, err := fs.Stat(fsys, urlPath)
++	if err != nil {
++		http.Error(w, "Not Found", http.StatusNotFound)
++		return
++	}
++
++	if stat.IsDir() {
++		indexPath := path.Join(urlPath, "index.html")
++		if _, err := fs.Stat(fsys, indexPath); err != nil {
++			http.Error(w, "Not Found", http.StatusNotFound)
++			return
++		}
++		http.ServeFileFS(w, r, fsys, indexPath)
++		return
++	}
++	http.ServeFileFS(w, r, fsys, urlPath)
++}
++
++func (fsys *customFileSystem) Open(name string) (fs.File, error) {
++	if !fsys.dotFileAccess && containsDotFile(name) {
++		return nil, fs.ErrPermission
++	}
++	return fsys.FS.Open(name)
++}
++
++func containsDotFile(name string) bool {
++	parts := strings.SplitSeq(name, "/")
++	for part := range parts {
++		if part != "." && strings.HasPrefix(part, ".") {
++			return true
++		}
++	}
++	return false
++}
