@@ -1,0 +1,155 @@
+diff --git a/v4-testing/go.mod b/v5-better-testing/go.mod
+index 608c1c2..ca3e93e 100644
+--- a/v4-testing/go.mod
++++ b/v5-better-testing/go.mod
+@@ -1,3 +1,3 @@
+-module github.com/hammondus/webserver-evolution/ver4
++module github.com/hammondus/webserver-evolution/ver5
+ 
+ go 1.26.3
+diff --git a/v4-testing/index.html b/v5-better-testing/index.html
+index 8dd39f8..3fee7eb 100644
+--- a/v4-testing/index.html
++++ b/v5-better-testing/index.html
+@@ -4,11 +4,11 @@
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-    <title>Web Server v4</title>
++    <title>Web Server v5</title>
+ </head>
+ 
+ <body>
+-    <h1>Web Server v4</h1>
++    <h1>Web Server v5</h1>
+ </body>
+ 
+ </html>
+\ No newline at end of file
+diff --git a/v4-testing/main_test.go b/v5-better-testing/main_test.go
+index 049c9ba..612e51b 100644
+--- a/v4-testing/main_test.go
++++ b/v5-better-testing/main_test.go
+@@ -6,47 +6,84 @@ import (
+ 	"testing"
+ )
+ 
+-func TestServeCustomFS_DotFilesBlocked_No_Escape(t *testing.T) {
+-	fsys, err := NewCustomFS("testdata", false, false)
+-	if err != nil {
+-		t.Fatal(err)
++func TestServeCustomFS(t *testing.T) {
++	type requestCase struct {
++		path         string
++		expectedCode int
+ 	}
+ 
+-	r := httptest.NewRequest(http.MethodGet, "/.secretFile", nil)
+-	w := httptest.NewRecorder()
+-	serveCustomFS(fsys, w, r)
+-	if w.Code != http.StatusNotFound {
+-		t.Errorf("expected 404, got %d", w.Code)
++	tests := []struct {
++		name        string
++		allowEscape bool
++		allowDot    bool
++		cases       []requestCase
++	}{
++		{
++			name:        "dot files blocked, no escape",
++			allowEscape: false,
++			allowDot:    false,
++			cases: []requestCase{
++				{"/.secretFile", http.StatusNotFound},
++				{"/.secretDir/testes.txt", http.StatusNotFound},
++				{"/noindex", http.StatusNotFound},
++				{"/static", http.StatusOK},
++				{"/escape/README.md", http.StatusNotFound},
++			},
++		},
++		{
++			name:        "dot files blocked, with escape",
++			allowEscape: true,
++			allowDot:    false,
++			cases: []requestCase{
++				{"/.secretFile", http.StatusNotFound},
++				{"/.secretDir/testes.txt", http.StatusNotFound},
++				{"/noindex", http.StatusNotFound},
++				{"/static", http.StatusOK},
++				{"/escape/README.md", http.StatusOK},
++			},
++		},
++		{
++			name:        "dot files enabled, no escape",
++			allowEscape: false,
++			allowDot:    true,
++			cases: []requestCase{
++				{"/.secretFile", http.StatusOK},
++				{"/.secretDir/testes.txt", http.StatusOK},
++				{"/noindex", http.StatusNotFound},
++				{"/static", http.StatusOK},
++				{"/escape/README.md", http.StatusNotFound},
++			},
++		},
++		{
++			name:        "dot files enabled, with escape",
++			allowEscape: true,
++			allowDot:    true,
++			cases: []requestCase{
++				{"/.secretFile", http.StatusOK},
++				{"/.secretDir/testes.txt", http.StatusOK},
++				{"/noindex", http.StatusNotFound},
++				{"/static", http.StatusOK},
++				{"/escape/README.md", http.StatusOK},
++			},
++		},
+ 	}
+ 
+-	r = httptest.NewRequest(http.MethodGet, "/.secretDir/testes.txt", nil)
+-	w = httptest.NewRecorder()
+-	serveCustomFS(fsys, w, r)
+-	if w.Code != http.StatusNotFound {
+-		t.Errorf("expected 404, got %d", w.Code)
+-	}
+-
+-	// should get file not found when asking for a directory that doesn't contain index.html
+-	r = httptest.NewRequest(http.MethodGet, "/noindex", nil)
+-	w = httptest.NewRecorder()
+-	serveCustomFS(fsys, w, r)
+-	if w.Code != http.StatusNotFound {
+-		t.Errorf("expected 404, got %d", w.Code)
+-	}
+-
+-	// should status ok 200 when accessing a directory with an index.html
+-	r = httptest.NewRequest(http.MethodGet, "/static", nil)
+-	w = httptest.NewRecorder()
+-	serveCustomFS(fsys, w, r)
+-	if w.Code != http.StatusOK {
+-		t.Errorf("expected 200, got %d", w.Code)
+-	}
+-
+-	// shoudn't be able to esacpe to a directory at a higher level than we start
+-	r = httptest.NewRequest(http.MethodGet, "/escape/README.md", nil)
+-	w = httptest.NewRecorder()
+-	serveCustomFS(fsys, w, r)
+-	if w.Code != http.StatusNotFound {
+-		t.Errorf("expected 404, got %d", w.Code)
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			fsys, err := NewCustomFS("testdata", tt.allowEscape, tt.allowDot)
++			if err != nil {
++				t.Fatal(err)
++			}
++			for _, rc := range tt.cases {
++				t.Run(rc.path, func(t *testing.T) {
++					r := httptest.NewRequest(http.MethodGet, rc.path, nil)
++					w := httptest.NewRecorder()
++					serveCustomFS(fsys, w, r)
++					if w.Code != rc.expectedCode {
++						t.Errorf("expected %d, got %d", rc.expectedCode, w.Code)
++					}
++				})
++			}
++		})
+ 	}
+ }

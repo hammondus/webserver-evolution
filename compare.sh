@@ -16,3 +16,4 @@ rsync -a ./testdata $new
 diff_versions "v1-super-simple"    "v2-prevent-dot-dir"
 diff_versions "v2-prevent-dot-dir" "v3-no-escape"
 diff_versions "v3-no-escape"       "v4-testing"
+diff_versions "v4-testing"         "v5-better-testing"
