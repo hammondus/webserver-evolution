@@ -1,3 +1,11 @@
+diff --git a/v3-no-escape/.secretFile b/v3-no-escape/.secretFile
+new file mode 100644
+index 0000000..d1e94ee
+--- /dev/null
++++ b/v3-no-escape/.secretFile
+@@ -0,0 +1 @@
++This is the root secret
+\ No newline at end of file
 diff --git a/v2-prevent-dot-dir/go.mod b/v3-no-escape/go.mod
 index ed7b3f5..a5d6f05 100644
 --- a/v2-prevent-dot-dir/go.mod
@@ -27,7 +35,7 @@ index eae5aa2..a8a2033 100644
  </html>
 \ No newline at end of file
 diff --git a/v2-prevent-dot-dir/main.go b/v3-no-escape/main.go
-index 55e0be4..1d0440b 100644
+index 55e0be4..f98f09e 100644
 --- a/v2-prevent-dot-dir/main.go
 +++ b/v3-no-escape/main.go
 @@ -1,6 +1,7 @@
@@ -38,14 +46,13 @@ index 55e0be4..1d0440b 100644
  	"io/fs"
  	"log"
  	"net/http"
-@@ -10,13 +11,14 @@ import (
+@@ -10,13 +11,13 @@ import (
  )
  
  func main() {
 -	fsys := customFileSystem{
 -		FS:            os.DirFS("."),
 -		dotFileAccess: false,
-+
 +	fsys, err := NewCustomFS(".", true, false)
 +	if err != nil {
 +		log.Fatal(err)
@@ -57,7 +64,7 @@ index 55e0be4..1d0440b 100644
  	})
  	log.Println("Server starting on :8080")
  	log.Fatal(http.ListenAndServe(":8080", nil))
-@@ -24,11 +26,29 @@ func main() {
+@@ -24,11 +25,29 @@ func main() {
  
  // Custom File System struct, methods and associated functions
  type customFileSystem struct {
@@ -89,7 +96,7 @@ index 55e0be4..1d0440b 100644
  	urlPath := path.Clean(r.URL.Path)
  	urlPath = strings.TrimPrefix(urlPath, "/")
  
-@@ -44,13 +64,11 @@ func serveCustomFS(fsys *customFileSystem, w http.ResponseWriter, r *http.Reques
+@@ -44,13 +63,11 @@ func serveCustomFS(fsys *customFileSystem, w http.ResponseWriter, r *http.Reques
  	}
  
  	if stat.IsDir() {
@@ -105,7 +112,7 @@ index 55e0be4..1d0440b 100644
  	}
  	http.ServeFileFS(w, r, fsys, urlPath)
  }
-@@ -59,7 +77,7 @@ func (fsys *customFileSystem) Open(name string) (fs.File, error) {
+@@ -59,7 +76,7 @@ func (fsys *customFileSystem) Open(name string) (fs.File, error) {
  	if !fsys.dotFileAccess && containsDotFile(name) {
  		return nil, fs.ErrPermission
  	}

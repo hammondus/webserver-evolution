@@ -11,7 +11,6 @@ import (
 )
 
 func main() {
-
 	fsys, err := NewCustomFS(".", true, false)
 	if err != nil {
 		log.Fatal(err)

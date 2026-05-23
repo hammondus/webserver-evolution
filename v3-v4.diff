@@ -1,3 +1,11 @@
+diff --git a/v3-no-escape/.secretFile b/v3-no-escape/.secretFile
+deleted file mode 100644
+index d1e94ee..0000000
+--- a/v3-no-escape/.secretFile
++++ /dev/null
+@@ -1 +0,0 @@
+-This is the root secret
+\ No newline at end of file
 diff --git a/v3-no-escape/go.mod b/v4-testing/go.mod
 index a5d6f05..608c1c2 100644
 --- a/v3-no-escape/go.mod
@@ -27,17 +35,17 @@ index a8a2033..8dd39f8 100644
  </html>
 \ No newline at end of file
 diff --git a/v3-no-escape/main.go b/v4-testing/main.go
-index 1d0440b..a0dafa8 100644
+index f98f09e..1d0440b 100644
 --- a/v3-no-escape/main.go
 +++ b/v4-testing/main.go
-@@ -28,6 +28,7 @@ func main() {
- type customFileSystem struct {
- 	innerFS       fs.FS
- 	dotFileAccess bool
-+	defaultHtml   []string
- }
+@@ -11,6 +11,7 @@ import (
+ )
  
- func NewCustomFS(rootPath string, rootEscape bool, dotFileAccess bool) (*customFileSystem, error) {
+ func main() {
++
+ 	fsys, err := NewCustomFS(".", true, false)
+ 	if err != nil {
+ 		log.Fatal(err)
 diff --git a/v4-testing/main_test.go b/v4-testing/main_test.go
 new file mode 100644
 index 0000000..6458318
@@ -231,39 +239,3 @@ index 0000000..6458318
 +		t.Errorf("expected 200, got %d", w.Code)
 +	}
 +}
-diff --git a/v3-no-escape/.secretDir/.secretFileInSecretDir.txt b/v4-testing/testdata/.secretDir/.secretFileInSecretDir.txt
-similarity index 100%
-rename from v3-no-escape/.secretDir/.secretFileInSecretDir.txt
-rename to v4-testing/testdata/.secretDir/.secretFileInSecretDir.txt
-diff --git a/v3-no-escape/.secretDir/testes.txt b/v4-testing/testdata/.secretDir/testes.txt
-similarity index 100%
-rename from v3-no-escape/.secretDir/testes.txt
-rename to v4-testing/testdata/.secretDir/testes.txt
-diff --git a/v3-no-escape/.secretFile b/v4-testing/testdata/.secretFile
-similarity index 100%
-rename from v3-no-escape/.secretFile
-rename to v4-testing/testdata/.secretFile
-diff --git a/v3-no-escape/escape b/v4-testing/testdata/escape
-similarity index 100%
-rename from v3-no-escape/escape
-rename to v4-testing/testdata/escape
-diff --git a/v3-no-escape/noindex/anotherDirectory/anothertext.txt b/v4-testing/testdata/noindex/anotherDirectory/anothertext.txt
-similarity index 100%
-rename from v3-no-escape/noindex/anotherDirectory/anothertext.txt
-rename to v4-testing/testdata/noindex/anotherDirectory/anothertext.txt
-diff --git a/v3-no-escape/noindex/static.html b/v4-testing/testdata/noindex/static.html
-similarity index 100%
-rename from v3-no-escape/noindex/static.html
-rename to v4-testing/testdata/noindex/static.html
-diff --git a/v3-no-escape/noindex/text.txt b/v4-testing/testdata/noindex/text.txt
-similarity index 100%
-rename from v3-no-escape/noindex/text.txt
-rename to v4-testing/testdata/noindex/text.txt
-diff --git a/v3-no-escape/static/index.html b/v4-testing/testdata/static/index.html
-similarity index 100%
-rename from v3-no-escape/static/index.html
-rename to v4-testing/testdata/static/index.html
-diff --git a/v3-no-escape/static/static.html b/v4-testing/testdata/static/static.html
-similarity index 100%
-rename from v3-no-escape/static/static.html
-rename to v4-testing/testdata/static/static.html
